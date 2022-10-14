@@ -1,0 +1,134 @@
+name: ci
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch: {}
+#    Inputs are available under: github.event.inputs.{name}
+#    inputs:
+#      name:
+#        description: 'Variable description'
+#        required: true
+#        default: 'default value here'
+# https://docs.github.com/en/actions/reference/events-that-trigger-workflows#workflow_dispatch
+jobs:
+  # Scan direct Go dependencies for known vulnerabilities
+  scan:
+    name: scan for vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      # Go
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.x
+
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Configure runner environment
+      - name: Set up runner environment
+        run: ./.github/workflows/assets/utils.sh setup
+        env:
+          GITHUB_USER: ${{ github.actor }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+
+      # Get commit message
+      - name: Get commit message
+        run: |
+          echo 'commit_msg<<EOF' >> $GITHUB_ENV
+          git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
+      # List direct dependencies
+      - name: List dependencies
+        run: go list -mod=readonly -f '{{if not .Indirect}}{{.}}{{end}}' -m all > go.list
+
+      # Scan dependencies using Nancy
+      # Can be excluded if the commit message contains: [scan-deps skip]
+      # https://github.com/sonatype-nexus-community/nancy-github-action
+      - name: Scan dependencies
+        id: scan-deps
+        if: ${{ !contains(env.commit_msg, '[scan-deps skip]') }}
+        uses: sonatype-nexus-community/nancy-github-action@v1.0.2
+
+  # Runs on every push and pull request on the selected branches.
+  # Can also be executed manually.
+  test:
+    name: code quality and correctness
+    needs: scan
+    strategy:
+      matrix:
+        go-version: [1.17.x, 1.18.x, 1.19.x]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      # Go
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Configure runner environment
+      - name: Set up runner environment
+        run: ./.github/workflows/assets/utils.sh setup
+        env:
+          GITHUB_USER: ${{ github.actor }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+
+      # Get commit message
+      - name: Get commit message
+        run: |
+          echo 'commit_msg<<EOF' >> $GITHUB_ENV
+          git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
+      # If "vendor" is in cache, restore.
+      # To run conditional steps use:
+      # if: steps.vendor-cache.outputs.cache-hit != 'true'
+      - name: Restore modules from cache
+        id: vendor-cache
+        uses: actions/cache@v3
+        env:
+          cache-name: vendor
+        with:
+          path: ./vendor
+          key: ${{ env.cache-name }}-${{ hashFiles('go.sum') }}
+
+      # Style consistency and static analysis using 'golangci-lint'
+      # https://github.com/marketplace/actions/run-golangci-lint
+      - name: Static analysis
+        uses: golangci/golangci-lint-action@v3.2.0
+        with:
+          version: v1.48.0
+
+      # Run unit tests
+      - name: Test
+        run: make test
+
+      # Ensure project compile and build successfully
+      - name: Build
+        run: make build-for os=linux arch=amd64
+
+      # Save artifacts
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: assets
+          path: |
+            coverage.html
+
+      # Populate vendor cache to speed up future runs
+      - name: Populate vendor cache
+        run: go mod vendor

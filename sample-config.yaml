@@ -1,0 +1,44 @@
+otel:
+  service_name: "serve"
+  service_version: "0.1.0"
+  collector: "" # if not provided, output will be discarded
+  attributes:
+    environment: dev
+  sentry:
+    dsn: "" # if not provided, output will be discarded
+    environment: dev
+server:
+  port: 9090
+  cache: 3600
+  proxy_protocol: false
+  tls:
+    enabled: false
+    system_ca: true
+    cert: /etc/serve/tls/tls.crt
+    key: /etc/serve/tls/tls.key
+    custom_ca: []
+  middleware:
+    gzip: 7
+    metadata:
+      headers:
+        - authorization
+        - x-api-key
+    cors:
+      max_age: 300
+      options_status_code: 200
+      allow_credentials: true
+      ignore_options: false
+      allowed_headers:
+        - authorization
+        - content-type
+        - x-api-key
+      allowed_methods:
+        - get
+        - head
+        - post
+        - options
+      allowed_origins:
+        - "*"
+      exposed_headers:
+        - authorization
+        - x-api-key

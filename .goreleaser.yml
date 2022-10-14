@@ -1,0 +1,143 @@
+# main project name value
+# https://goreleaser.com/customization/project/
+project_name: serve
+# produced artifacts are stored in this folder
+dist: dist
+# customize execution
+before:
+  hooks:
+    - go mod download
+    - go generate ./...
+    - docker login ghcr.io -u {{ .Env.GITHUB_USER }} -p {{ .Env.GITHUB_TOKEN }}
+# artifacts to produce
+# https://goreleaser.com/customization/build/
+builds:
+  # a single project can support/require several build targets
+  - id: serve
+    # main binary name
+    binary: serve
+    # code entrypoint
+    main: ./cli/main.go
+    # CLI flags for the 'go build' command
+    flags:
+      -v
+    ldflags:
+      - -s -w
+      - -X github.com/bryk-io/serve/internal.CoreVersion={{.Version}}
+      - -X github.com/bryk-io/serve/internal.BuildCode={{.Commit}}
+      - -X github.com/bryk-io/serve/internal.BuildTimestamp={{.CommitDate}}
+    # set the modified timestamp on the output binary to ensure a
+    # reproducible build
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    # disable CGO since it's not supported
+    env:
+      - CGO_ENABLED=0
+    # supported OSs
+    goos:
+      - linux
+      - windows
+      - darwin
+    # supported architectures
+    goarch:
+      - amd64
+      - arm64
+    # windows ARM is not supported
+    ignore:
+      - goos: windows
+        goarch: arm64
+# packages to produce
+# https://goreleaser.com/customization/archive/
+archives:
+  # a single project can produce multiple archives
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      # artifacts to pack
+      - serve
+    format_overrides:
+      # use zip file instead of 'tar.gz' on Windows systems
+      - goos: windows
+        format: zip
+    files:
+      # include documentation files in the package for distribution
+      - README.md
+      - LICENSE*
+      - src: '*.md'
+        dst: docs
+        strip_parent: true
+# generate integrity checksums
+# https://goreleaser.com/customization/checksum/
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+# Include source code package on the release
+# https://goreleaser.com/customization/source/
+source:
+  enabled: true
+# produce test releases
+# https://goreleaser.com/customization/snapshots/
+snapshot:
+  name_template: "{{ .Version }}-next"
+# configure the 'CHANGELOG.md' file produced
+# https://goreleaser.com/customization/release/#customize-the-changelog
+changelog:
+  # Sorts the changelog by the commit messages (asc, desc or '')
+  sort: ''
+  # Remove certain commit messages from the changelog
+  filters:
+    # Standard commit messages can help to produce better changelogs
+    # https://www.conventionalcommits.org/en/v1.0.0/
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^typo:"
+# Produce homebrew formulas for the project artifacts
+# https://goreleaser.com/customization/homebrew/
+brews:
+  -
+    # Formula name
+    name: serve
+    # Push the formula to the tap repository
+    skip_upload: "false"
+    # TAP repository
+    tap:
+      owner: bryk-io
+      name: homebrew-tap
+    # Use 'github-actions' as commit author
+    # https://github.community/t/github-actions-bot-email-address/17204
+    commit_author:
+      name: github-actions
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+    homepage: 'https://github.com/bryk-io/tred-cli'
+    description: |
+      Simple file system HTTP server
+    install: |
+      bin.install "serve"
+      output = Utils.popen_read("#{bin}/serve completion bash")
+      (bash_completion/"serve").write output
+      output = Utils.popen_read("#{bin}/serve completion zsh")
+      (zsh_completion/"_serve").write output
+      prefix.install_metafiles
+    test: |
+      system "#{bin}/serve version"
+# linux packages
+# https://goreleaser.com/customization/nfpm/
+nfpms:
+  -
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    builds:
+      - serve
+    vendor: Bryk Labs
+    homepage: https://github.com/bryk-io/serve
+    maintainer: Ben Cessa <ben@bryk.io>
+    description: Simple file system HTTP server.
+    license: BSD-3-Clause
+    formats:
+      # Alpine
+      - apk
+      # Debian based distributions
+      - deb
+      # RedHat based distributions
+      - rpm
+    # Binary location
+    bindir: /usr/local/bin

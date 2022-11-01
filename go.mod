@@ -3,7 +3,7 @@ module github.com/bryk-io/serve
 go 1.18
 
 require (
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.13.0
 	go.bryk.io/pkg v0.0.0-20221012212438-b76a4559b1d2
 )

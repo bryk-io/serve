@@ -198,7 +198,6 @@ func (s *Settings) extraHeaders(next http.Handler) http.Handler {
 		if s.Server.Cache > 0 {
 			w.Header().Add("Cache-Control", fmt.Sprintf("public, max-age=%d", s.Server.Cache))
 		}
-		w.Header().Add("x-content-type-options", "nosniff")
 		w.Header().Set("x-serve-version", CoreVersion)
 		w.Header().Set("x-serve-build", BuildCode)
 		w.Header().Set("x-serve-release", s.ReleaseCode())

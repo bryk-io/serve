@@ -29,6 +29,7 @@ build
 # Build
 dist
 serve
+serve_*
 !helm/serve
 
 # Temp file

@@ -51,8 +51,7 @@ func runServer(_ *cobra.Command, args []string) error {
 	// setup and start server
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(fp)))
-	opts := conf.ServerOptions(mux, oop)
-	srv, err := pkgHttp.NewServer(opts...)
+	srv, err := pkgHttp.NewServer(conf.ServerOptions(mux, oop)...)
 	if err != nil {
 		return err
 	}

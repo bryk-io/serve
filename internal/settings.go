@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 	"go.bryk.io/pkg/cli"
 	xlog "go.bryk.io/pkg/log"
+	"go.bryk.io/pkg/net/csp"
 	pkgHttp "go.bryk.io/pkg/net/http"
 	"go.bryk.io/pkg/net/middleware"
 	"go.bryk.io/pkg/otel"
@@ -46,6 +47,7 @@ func (s *Settings) SetDefaults(v *viper.Viper, appID string) {
 			Port:  9090,
 			Cache: 3600,
 			TLS:   &tlsSettings{Enabled: false},
+			CSP:   &cspSettings{Enabled: false},
 			Middleware: &mwSettings{
 				Gzip:     5,
 				Metadata: &mwMetadataSettings{Headers: []string{}},
@@ -140,6 +142,20 @@ func (s *Settings) ServerOptions(handler http.Handler, log xlog.Logger) []pkgHtt
 	if s.Server.ProxyProtocol {
 		opts = append(opts, pkgHttp.WithMiddleware(middleware.ProxyHeaders()))
 	}
+	if s.Server.CSP.Enabled {
+		var cspOpts []csp.Option
+		if s.Server.CSP.AllowEval {
+			cspOpts = append(cspOpts, csp.UnsafeEval())
+		}
+		if s.Server.CSP.ReportOnly {
+			cspOpts = append(cspOpts, csp.WithReportOnly())
+		}
+		if len(s.Server.CSP.ReportTo) > 0 {
+			cspOpts = append(cspOpts, csp.WithReportTo(s.Server.CSP.ReportTo...))
+		}
+		policy, _ := csp.New(cspOpts...)
+		opts = append(opts, pkgHttp.WithMiddleware(policy.Handler()))
+	}
 	if s.Server.TLS.Enabled {
 		if err := expandTLS(s.Server.TLS); err == nil {
 			opts = append(opts, pkgHttp.WithTLS(pkgHttp.TLS{
@@ -210,6 +226,7 @@ type serverSettings struct {
 	Cache         uint         `json:"cache" yaml:"cache" mapstructure:"cache"`
 	ProxyProtocol bool         `json:"proxy_protocol" yaml:"proxy_protocol" mapstructure:"proxy_protocol"`
 	TLS           *tlsSettings `json:"tls" yaml:"tls" mapstructure:"tls"`
+	CSP           *cspSettings `json:"csp" yaml:"csp" mapstructure:"csp"`
 	Middleware    *mwSettings  `json:"middleware" yaml:"middleware" mapstructure:"middleware"`
 }
 
@@ -237,6 +254,13 @@ type tlsSettings struct {
 	cert      []byte
 	key       []byte
 	customCAs [][]byte
+}
+
+type cspSettings struct {
+	Enabled    bool     `json:"enabled" yaml:"enabled" mapstructure:"enabled"`
+	AllowEval  bool     `json:"allow_eval" yaml:"allow_eval" mapstructure:"allow_eval"`
+	ReportOnly bool     `json:"report_only" yaml:"report_only" mapstructure:"report_only"`
+	ReportTo   []string `json:"report_to" yaml:"report_to" mapstructure:"report_to"`
 }
 
 type mwSettings struct {

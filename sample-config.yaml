@@ -17,6 +17,12 @@ server:
     cert: /etc/serve/tls/tls.crt
     key: /etc/serve/tls/tls.key
     custom_ca: []
+  csp:
+    enabled: true
+    allow_eval: false
+    report_only: true
+    report_to:
+      - /csp-reports
   middleware:
     gzip: 7
     metadata:

@@ -10,7 +10,8 @@ Easily deploy a robust HTTP(S) server from contents on your file system.
 
 Features include:
 
-- OpenTelemetry support
+- Content Security Policy (CSP)
+- OpenTelemetry monitoring
 - Error reporting (using Sentry)
 - TLS
 - Gzip compression
@@ -56,6 +57,9 @@ server:
     cert: /etc/serve/tls/tls.crt
     key: /etc/serve/tls/tls.key
     custom_ca: []
+  csp:
+    enabled: true
+    allow_eval: false
   middleware:
     gzip: 7
     metadata:

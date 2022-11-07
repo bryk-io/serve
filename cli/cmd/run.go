@@ -60,7 +60,7 @@ func runServer(_ *cobra.Command, args []string) error {
 	}()
 
 	// wait for system signals
-	log.Info("server is ready and waiting for requests")
+	log.WithField("port", conf.Server.Port).Info("server is ready and waiting for requests")
 	<-cli.SignalsHandler([]os.Signal{
 		syscall.SIGHUP,
 		syscall.SIGINT,

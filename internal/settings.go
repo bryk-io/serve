@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -127,20 +128,14 @@ func (s *Settings) OTEL(log xlog.Logger) []otel.OperatorOption {
 
 // ServerOptions returns the configuration options available to set up an
 // HTTP server instance.
-func (s *Settings) ServerOptions(handler http.Handler, log xlog.Logger) []pkgHttp.Option {
-	opts := []pkgHttp.Option{
-		pkgHttp.WithHandler(handler),
-		pkgHttp.WithPort(s.Server.Port),
-		pkgHttp.WithIdleTimeout(10 * time.Second),
-		pkgHttp.WithMiddleware(middleware.CORS(*s.Server.Middleware.CORS)),
-		pkgHttp.WithMiddleware(middleware.ContextMetadata(s.MetadataOptions())),
-		pkgHttp.WithMiddleware(middleware.GzipCompression(s.Server.Middleware.Gzip)),
-		pkgHttp.WithMiddleware(middleware.Logging(log, nil)),
-		pkgHttp.WithMiddleware(s.extraHeaders),
-		pkgHttp.WithMiddleware(middleware.PanicRecovery()),
+func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logger) []pkgHttp.Option {
+	// Prepare server middleware. Order is important.
+	mw := []func(http.Handler) http.Handler{}
+	if s.Server.EnableSPA {
+		mw = append(mw, spaMiddleware(filepath.Join(dir, "index.html")))
 	}
 	if s.Server.ProxyProtocol {
-		opts = append(opts, pkgHttp.WithMiddleware(middleware.ProxyHeaders()))
+		mw = append(mw, middleware.ProxyHeaders())
 	}
 	if s.Server.CSP.Enabled {
 		var cspOpts []csp.Option
@@ -154,7 +149,22 @@ func (s *Settings) ServerOptions(handler http.Handler, log xlog.Logger) []pkgHtt
 			cspOpts = append(cspOpts, csp.WithReportTo(s.Server.CSP.ReportTo...))
 		}
 		policy, _ := csp.New(cspOpts...)
-		opts = append(opts, pkgHttp.WithMiddleware(policy.Handler()))
+		mw = append(mw, policy.Handler())
+	}
+	mw = append(mw,
+		middleware.CORS(*s.Server.Middleware.CORS),
+		middleware.ContextMetadata(s.MetadataOptions()),
+		middleware.GzipCompression(s.Server.Middleware.Gzip),
+		middleware.Logging(log, nil),
+		middleware.Headers(s.extraHeaders()),
+		middleware.PanicRecovery(),
+	)
+
+	opts := []pkgHttp.Option{
+		pkgHttp.WithHandler(handler),
+		pkgHttp.WithPort(s.Server.Port),
+		pkgHttp.WithIdleTimeout(10 * time.Second),
+		pkgHttp.WithMiddleware(mw...),
 	}
 	if s.Server.TLS.Enabled {
 		if err := expandTLS(s.Server.TLS); err == nil {
@@ -208,23 +218,24 @@ func (s *Settings) MetadataOptions() middleware.ContextMetadataOptions {
 	return middleware.ContextMetadataOptions{Headers: s.Server.Middleware.Metadata.Headers}
 }
 
-// Custom middleware to add additional headers.
-func (s *Settings) extraHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.Server.Cache > 0 {
-			w.Header().Add("Cache-Control", fmt.Sprintf("public, max-age=%d", s.Server.Cache))
-		}
-		w.Header().Set("x-serve-version", CoreVersion)
-		w.Header().Set("x-serve-build", BuildCode)
-		w.Header().Set("x-serve-release", s.ReleaseCode())
-		next.ServeHTTP(w, r)
-	})
+// Additional headers to be returned on every request.
+func (s *Settings) extraHeaders() map[string]string {
+	headers := map[string]string{
+		"x-serve-version": CoreVersion,
+		"x-serve-build":   BuildCode,
+		"x-serve-release": s.ReleaseCode(),
+	}
+	if s.Server.Cache > 0 {
+		headers["Cache-Control"] = fmt.Sprintf("public, max-age=%d", s.Server.Cache)
+	}
+	return headers
 }
 
 type serverSettings struct {
 	Port          int          `json:"port" yaml:"port" mapstructure:"port"`
 	Cache         uint         `json:"cache" yaml:"cache" mapstructure:"cache"`
 	ProxyProtocol bool         `json:"proxy_protocol" yaml:"proxy_protocol" mapstructure:"proxy_protocol"`
+	EnableSPA     bool         `json:"enable_spa" yaml:"enable_spa" mapstructure:"enable_spa"`
 	TLS           *tlsSettings `json:"tls" yaml:"tls" mapstructure:"tls"`
 	CSP           *cspSettings `json:"csp" yaml:"csp" mapstructure:"csp"`
 	Middleware    *mwSettings  `json:"middleware" yaml:"middleware" mapstructure:"middleware"`

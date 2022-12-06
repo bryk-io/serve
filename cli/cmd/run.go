@@ -46,12 +46,12 @@ func runServer(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer oop.Shutdown(context.TODO())
+	defer oop.Shutdown(context.Background())
 
 	// setup and start server
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(fp)))
-	srv, err := pkgHttp.NewServer(conf.ServerOptions(mux, oop)...)
+	srv, err := pkgHttp.NewServer(conf.ServerOptions(mux, fp, oop)...)
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,13 @@ import (
 	xlog "go.bryk.io/pkg/log"
 	"go.bryk.io/pkg/net/csp"
 	pkgHttp "go.bryk.io/pkg/net/http"
-	"go.bryk.io/pkg/net/middleware"
+	mwCors "go.bryk.io/pkg/net/middleware/cors"
+	mwGzip "go.bryk.io/pkg/net/middleware/gzip"
+	mwHeaders "go.bryk.io/pkg/net/middleware/headers"
+	mwLogging "go.bryk.io/pkg/net/middleware/logging"
+	mwMetadata "go.bryk.io/pkg/net/middleware/metadata"
+	mwProxy "go.bryk.io/pkg/net/middleware/proxy"
+	mwRecovery "go.bryk.io/pkg/net/middleware/recovery"
 	"go.bryk.io/pkg/otel"
 	"go.bryk.io/pkg/otel/sentry"
 )
@@ -51,8 +57,8 @@ func (s *Settings) SetDefaults(v *viper.Viper, appID string) {
 			CSP:   &cspSettings{Enabled: false},
 			Middleware: &mwSettings{
 				Gzip:     5,
-				Metadata: &mwMetadataSettings{Headers: []string{}},
-				CORS:     new(middleware.CORSOptions),
+				Metadata: new(mwMetadata.Options),
+				CORS:     new(mwCors.Options),
 			},
 		}
 	}
@@ -135,7 +141,7 @@ func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logg
 		mw = append(mw, spaMiddleware(filepath.Join(dir, "index.html")))
 	}
 	if s.Server.ProxyProtocol {
-		mw = append(mw, middleware.ProxyHeaders())
+		mw = append(mw, mwProxy.Handler())
 	}
 	if s.Server.CSP.Enabled {
 		var cspOpts []csp.Option
@@ -152,12 +158,12 @@ func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logg
 		mw = append(mw, policy.Handler())
 	}
 	mw = append(mw,
-		middleware.CORS(*s.Server.Middleware.CORS),
-		middleware.ContextMetadata(s.MetadataOptions()),
-		middleware.GzipCompression(s.Server.Middleware.Gzip),
-		middleware.Logging(log, nil),
-		middleware.Headers(s.extraHeaders()),
-		middleware.PanicRecovery(),
+		mwCors.Handler(*s.Server.Middleware.CORS),
+		mwMetadata.Handler(s.MetadataOptions()),
+		mwGzip.Handler(s.Server.Middleware.Gzip),
+		mwLogging.Handler(log, nil),
+		mwHeaders.Handler(s.extraHeaders()),
+		mwRecovery.Handler(),
 	)
 
 	opts := []pkgHttp.Option{
@@ -208,14 +214,14 @@ func (s *Settings) ReleaseCode() string {
 }
 
 // CORS provides a "Cross Origin Resource Sharing" middleware.
-func (s *Settings) CORS() middleware.CORSOptions {
+func (s *Settings) CORS() mwCors.Options {
 	return *s.Server.Middleware.CORS
 }
 
 // MetadataOptions return configuration settings required to adjust the behavior
 // of the metadata middleware.
-func (s *Settings) MetadataOptions() middleware.ContextMetadataOptions {
-	return middleware.ContextMetadataOptions{Headers: s.Server.Middleware.Metadata.Headers}
+func (s *Settings) MetadataOptions() mwMetadata.Options {
+	return mwMetadata.Options{Headers: s.Server.Middleware.Metadata.Headers}
 }
 
 // Additional headers to be returned on every request.
@@ -275,11 +281,7 @@ type cspSettings struct {
 }
 
 type mwSettings struct {
-	Gzip     int                     `json:"gzip" yaml:"gzip" mapstructure:"gzip"`
-	Metadata *mwMetadataSettings     `json:"metadata" yaml:"metadata" mapstructure:"metadata"`
-	CORS     *middleware.CORSOptions `json:"cors" yaml:"cors" mapstructure:"cors"`
-}
-
-type mwMetadataSettings struct {
-	Headers []string `json:"headers" yaml:"headers" mapstructure:"headers"`
+	Gzip     int                 `json:"gzip" yaml:"gzip" mapstructure:"gzip"`
+	Metadata *mwMetadata.Options `json:"metadata" yaml:"metadata" mapstructure:"metadata"`
+	CORS     *mwCors.Options     `json:"cors" yaml:"cors" mapstructure:"cors"`
 }

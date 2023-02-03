@@ -3,11 +3,9 @@ on:
   push:
     branches:
       - main
-      - master
   pull_request:
     branches:
       - main
-      - master
   workflow_dispatch: {}
 #    Inputs are available under: github.event.inputs.{name}
 #    inputs:
@@ -51,12 +49,22 @@ jobs:
         run: go list -mod=readonly -f '{{if not .Indirect}}{{.}}{{end}}' -m all > go.list
 
       # Scan dependencies using Nancy
-      # Can be excluded if the commit message contains: [scan-deps skip]
+      # Can be excluded if the commit message contains: [skip scan-deps]
       # https://github.com/sonatype-nexus-community/nancy-github-action
       - name: Scan dependencies
-        id: scan-deps
-        if: ${{ !contains(env.commit_msg, '[scan-deps skip]') }}
+        if: ${{ !contains(env.commit_msg, '[skip scan-deps]') }}
         uses: sonatype-nexus-community/nancy-github-action@v1.0.2
+      
+      # Scan for leaked secrets
+      # Can be excluded if the commit message contains: [skip scan-secrets]
+      # https://github.com/marketplace/actions/trufflehog-oss
+      - name: Scan for leaked secrets
+        uses: trufflesecurity/trufflehog@v3.26.0
+        if: ${{ !contains(env.commit_msg, '[skip scan-secrets]') }}
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          extra_args: --debug --only-verified
 
   # Runs on every push and pull request on the selected branches.
   # Can also be executed manually.
@@ -119,7 +127,7 @@ jobs:
 
       # Ensure project compile and build successfully
       - name: Build
-        run: make build-for os=linux arch=amd64
+        run: make build
 
       # Save artifacts
       - name: Save artifacts

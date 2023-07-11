@@ -46,7 +46,7 @@ func (s *Settings) SetDefaults(v *viper.Viper, appID string) {
 	if s.Otel == nil {
 		s.Otel = &otelSettings{
 			ServiceName: appIdentifier,
-			Sentry:      &sentrySettings{},
+			Sentry:      new(sentry.Options),
 		}
 	}
 	if s.Server == nil {
@@ -124,9 +124,14 @@ func (s *Settings) OTEL(log xlog.Logger) []otel.OperatorOption {
 
 	// Error reporter
 	if sentryInfo := s.Otel.Sentry; sentryInfo.DSN != "" {
-		rep, err := sentry.Reporter(sentryInfo.DSN, sentryInfo.Env, s.Otel.ServiceVersion)
+		sentryInfo.Release = s.ReleaseCode()
+		rep, err := sentry.NewReporter(sentryInfo)
 		if err == nil {
-			opts = append(opts, otel.WithErrorReporter(rep))
+			opts = append(opts,
+				otel.WithPropagator(rep.Propagator()),
+				otel.WithSpanProcessor(rep.SpanProcessor()),
+				otel.WithSpanInterceptor(rep),
+			)
 		}
 	}
 	return opts
@@ -252,12 +257,7 @@ type otelSettings struct {
 	ServiceVersion string                 `json:"service_version" yaml:"service_version" mapstructure:"service_version"`
 	Collector      string                 `json:"collector" yaml:"collector" mapstructure:"collector"`
 	Attributes     map[string]interface{} `json:"attributes" yaml:"attributes" mapstructure:"attributes"`
-	Sentry         *sentrySettings        `json:"sentry" yaml:"sentry" mapstructure:"sentry"`
-}
-
-type sentrySettings struct {
-	DSN string `json:"dsn" yaml:"dsn" mapstructure:"dsn"`
-	Env string `json:"environment" yaml:"environment" mapstructure:"environment"`
+	Sentry         *sentry.Options        `json:"sentry" yaml:"sentry" mapstructure:"sentry"`
 }
 
 type tlsSettings struct {

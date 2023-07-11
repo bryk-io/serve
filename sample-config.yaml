@@ -1,12 +1,15 @@
 otel:
   service_name: "serve"
-  service_version: "0.1.0"
+  service_version: "0.1.2"
   collector: "" # if not provided, output will be discarded
   attributes:
     environment: dev
   sentry:
     dsn: "" # if not provided, output will be discarded
     environment: dev
+    performance_monitoring: true
+    traces_sample_rate: 1.0
+    profiling_sample_rate: 0.5
 server:
   port: 9090
   cache: 3600
@@ -30,6 +33,8 @@ server:
       headers:
         - authorization
         - x-api-key
+        - baggage
+        - sentry-trace
     cors:
       max_age: 300
       options_status_code: 200
@@ -39,6 +44,8 @@ server:
         - authorization
         - content-type
         - x-api-key
+        - baggage
+        - sentry-trace
       allowed_methods:
         - get
         - head
@@ -49,3 +56,5 @@ server:
       exposed_headers:
         - authorization
         - x-api-key
+        - baggage
+        - sentry-trace

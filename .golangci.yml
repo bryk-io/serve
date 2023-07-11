@@ -23,7 +23,6 @@ linters:
     - ineffassign
     - staticcheck
     - typecheck
-    - unused
     - gocyclo
     - goconst
     - depguard
@@ -46,14 +45,15 @@ linters:
     - predeclared
     - exportloopref
     - whitespace
+    - nestif
+    - funlen
     # Deprecated linters
-    #- wrapcheck
-    #- nestif
-    #- funlen
-    #- ifshort
-    #- varcheck
+    # - wrapcheck
+    # - ifshort
+    # - varcheck
   disable:
     - deadcode
+    - unused
     - dupl
     # https://github.com/golangci/golangci-lint/issues/2649
     - structcheck
@@ -103,10 +103,6 @@ linters-settings:
   goconst:
     min-len: 3
     min-occurrences: 5
-  depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages: []
   misspell:
     locale: US
     ignore-words: []

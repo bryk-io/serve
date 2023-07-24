@@ -11,7 +11,7 @@ import (
 	"go.bryk.io/pkg/cli"
 	"go.bryk.io/pkg/errors"
 	pkgHttp "go.bryk.io/pkg/net/http"
-	"go.bryk.io/pkg/otel"
+	otelSdk "go.bryk.io/pkg/otel/sdk"
 )
 
 var runCmd = &cobra.Command{
@@ -41,17 +41,19 @@ func runServer(_ *cobra.Command, args []string) error {
 		fp = args[0]
 	}
 
-	// get observability operator
-	oop, err := otel.NewOperator(conf.OTEL(log)...)
-	if err != nil {
-		return err
+	// enable/activate instrumentation
+	if otelOpts := conf.OTEL(log); otelOpts != nil {
+		telemetry, err := otelSdk.Setup(otelOpts...)
+		if err != nil {
+			return err
+		}
+		defer telemetry.Flush(context.Background())
 	}
-	defer oop.Shutdown(context.Background())
 
 	// setup and start server
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(fp)))
-	srv, err := pkgHttp.NewServer(conf.ServerOptions(mux, fp, oop)...)
+	srv, err := pkgHttp.NewServer(conf.ServerOptions(mux, fp, log)...)
 	if err != nil {
 		return err
 	}

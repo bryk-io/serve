@@ -1,4 +1,5 @@
 otel:
+  enabled: true
   service_name: "serve"
   service_version: "0.1.2"
   collector: "" # if not provided, output will be discarded

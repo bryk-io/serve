@@ -37,19 +37,25 @@ func Execute() {
 	defer func() {
 		if err := errors.FromRecover(recover()); err != nil {
 			log.Warning("recovered panic")
-			fmt.Printf("%+v", err)
-			os.Exit(1)
+			exit(err)
 		}
 	}()
 	// execute command
 	if err := rootCmd.Execute(); err != nil {
-		if pe := new(errors.Error); errors.Is(err, pe) {
-			log.WithField("error", err).Error("command failed")
-		} else {
-			log.Error(err)
-		}
-		os.Exit(1)
+		exit(err)
 	}
+}
+
+// print error details and quit.
+func exit(err error) {
+	if pe := new(errors.Error); errors.As(err, &pe) {
+		// print full error with stack trace
+		fmt.Printf("%+v", err)
+	} else {
+		// log simple error message
+		log.WithField("error", err).Error("exectution failed")
+	}
+	os.Exit(1)
 }
 
 func init() {

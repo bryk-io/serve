@@ -19,7 +19,8 @@ import (
 	mwMetadata "go.bryk.io/pkg/net/middleware/metadata"
 	mwProxy "go.bryk.io/pkg/net/middleware/proxy"
 	mwRecovery "go.bryk.io/pkg/net/middleware/recovery"
-	"go.bryk.io/pkg/otel"
+	otelHttp "go.bryk.io/pkg/otel/http"
+	otelSdk "go.bryk.io/pkg/otel/sdk"
 	"go.bryk.io/pkg/otel/sentry"
 )
 
@@ -108,18 +109,23 @@ func (s *Settings) Overrides(cmd string) []cli.Param {
 	}
 }
 
-// OTEL returns the configuration options available to set up an OTEL operator.
-func (s *Settings) OTEL(log xlog.Logger) []otel.OperatorOption {
-	opts := []otel.OperatorOption{
-		otel.WithLogger(log),
-		otel.WithServiceName(s.Otel.ServiceName),
-		otel.WithServiceVersion(s.Otel.ServiceVersion),
-		otel.WithResourceAttributes(s.Otel.Attributes),
-		otel.WithHostMetrics(),
-		otel.WithRuntimeMetrics(5 * time.Second),
+// OTEL returns the configuration options available to enable
+// OpenTelemetry instrumentation.
+func (s *Settings) OTEL(log xlog.Logger) []otelSdk.Option {
+	if !s.Otel.Enabled {
+		return nil
+	}
+
+	opts := []otelSdk.Option{
+		otelSdk.WithBaseLogger(log),
+		otelSdk.WithServiceName(s.Otel.ServiceName),
+		otelSdk.WithServiceVersion(s.Otel.ServiceVersion),
+		otelSdk.WithResourceAttributes(s.Otel.Attributes),
+		otelSdk.WithHostMetrics(),
+		otelSdk.WithRuntimeMetrics(5 * time.Second),
 	}
 	if collector := s.Otel.Collector; collector != "" {
-		opts = append(opts, otel.WithExporterOTLP(collector, true, nil)...)
+		opts = append(opts, otelSdk.WithExporterOTLP(collector, true, nil)...)
 	}
 
 	// Error reporter
@@ -128,9 +134,8 @@ func (s *Settings) OTEL(log xlog.Logger) []otel.OperatorOption {
 		rep, err := sentry.NewReporter(sentryInfo)
 		if err == nil {
 			opts = append(opts,
-				otel.WithPropagator(rep.Propagator()),
-				otel.WithSpanProcessor(rep.SpanProcessor()),
-				otel.WithSpanInterceptor(rep),
+				otelSdk.WithPropagator(rep.Propagator()),
+				otelSdk.WithSpanProcessor(rep.SpanProcessor()),
 			)
 		}
 	}
@@ -142,12 +147,22 @@ func (s *Settings) OTEL(log xlog.Logger) []otel.OperatorOption {
 func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logger) []pkgHttp.Option {
 	// Prepare server middleware. Order is important.
 	mw := []func(http.Handler) http.Handler{}
+
+	// enable instrumentation
+	monitor := otelHttp.NewMonitor()
+	mw = append(mw, monitor.ServerMiddleware())
+
+	// support for single page applications
 	if s.Server.EnableSPA {
 		mw = append(mw, spaMiddleware(filepath.Join(dir, "index.html")))
 	}
+
+	// PROXY protocol
 	if s.Server.ProxyProtocol {
 		mw = append(mw, mwProxy.Handler())
 	}
+
+	// content security policy
 	if s.Server.CSP.Enabled {
 		var cspOpts []csp.Option
 		if s.Server.CSP.AllowEval {
@@ -162,6 +177,8 @@ func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logg
 		policy, _ := csp.New(cspOpts...)
 		mw = append(mw, policy.Handler())
 	}
+
+	// general utilities
 	mw = append(mw,
 		mwCors.Handler(*s.Server.Middleware.CORS),
 		mwMetadata.Handler(s.MetadataOptions()),
@@ -171,12 +188,15 @@ func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logg
 		mwRecovery.Handler(),
 	)
 
+	// HTTP server options
 	opts := []pkgHttp.Option{
 		pkgHttp.WithHandler(handler),
 		pkgHttp.WithPort(s.Server.Port),
 		pkgHttp.WithIdleTimeout(10 * time.Second),
 		pkgHttp.WithMiddleware(mw...),
 	}
+
+	// configure TLS
 	if s.Server.TLS.Enabled {
 		if err := expandTLS(s.Server.TLS); err == nil {
 			opts = append(opts, pkgHttp.WithTLS(pkgHttp.TLS{
@@ -253,6 +273,7 @@ type serverSettings struct {
 }
 
 type otelSettings struct {
+	Enabled        bool                   `json:"enabled" yaml:"enabled" mapstructure:"enabled"`
 	ServiceName    string                 `json:"service_name" yaml:"service_name" mapstructure:"service_name"`
 	ServiceVersion string                 `json:"service_version" yaml:"service_version" mapstructure:"service_version"`
 	Collector      string                 `json:"collector" yaml:"collector" mapstructure:"collector"`

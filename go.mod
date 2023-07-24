@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
-	go.bryk.io/pkg v0.0.0-20230711012017-8e69ce8ebd62
+	go.bryk.io/pkg v0.0.0-20230726005736-9113c4947926
 )
 
 require (
@@ -17,7 +17,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.22.0 // indirect
-	github.com/getsentry/sentry-go/otel v0.22.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -71,7 +70,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/multierr v1.8.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect

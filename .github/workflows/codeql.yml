@@ -1,4 +1,6 @@
 name: "codeQL"
+env:
+  commit_msg: ""
 on:
   push:
     branches:
@@ -21,7 +23,7 @@ jobs:
     steps:
       # Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Get commit message
       - name: Get commit message

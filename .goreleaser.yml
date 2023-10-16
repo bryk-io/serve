@@ -19,8 +19,7 @@ builds:
     # code entrypoint
     main: ./cli/main.go
     # CLI flags for the 'go build' command
-    flags:
-      -v
+    flags: -v
     ldflags:
       - -s -w
       - -X github.com/bryk-io/serve/internal.CoreVersion={{.Version}}
@@ -61,7 +60,7 @@ archives:
       # include documentation files in the package for distribution
       - README.md
       - LICENSE*
-      - src: '*.md'
+      - src: "*.md"
         dst: docs
         strip_parent: true
 # generate integrity checksums
@@ -81,7 +80,7 @@ snapshot:
 # https://goreleaser.com/customization/release/#customize-the-changelog
 changelog:
   # Sorts the changelog by the commit messages (asc, desc or '')
-  sort: ''
+  sort: ""
   # Remove certain commit messages from the changelog
   filters:
     # Standard commit messages can help to produce better changelogs
@@ -94,13 +93,12 @@ changelog:
 # Produce homebrew formulas for the project artifacts
 # https://goreleaser.com/customization/homebrew/
 brews:
-  -
-    # Formula name
+  - # Formula name
     name: serve
     # Push the formula to the tap repository
     skip_upload: "false"
     # TAP repository
-    tap:
+    repository:
       owner: bryk-io
       name: homebrew-tap
     # Use 'github-actions' as commit author
@@ -108,7 +106,7 @@ brews:
     commit_author:
       name: github-actions
       email: 41898282+github-actions[bot]@users.noreply.github.com
-    homepage: 'https://github.com/bryk-io/tred-cli'
+    homepage: "https://github.com/bryk-io/tred-cli"
     description: |
       Simple file system HTTP server
     install: |
@@ -123,8 +121,7 @@ brews:
 # linux packages
 # https://goreleaser.com/customization/nfpm/
 nfpms:
-  -
-    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     builds:
       - serve
     vendor: Bryk Labs

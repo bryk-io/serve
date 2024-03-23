@@ -11,6 +11,7 @@ Easily deploy a robust HTTP(S) server from contents on your file system.
 Features include:
 
 - Content Security Policy (CSP)
+- Single page applications (SPA); React, Svelte, Vue, etc.
 - OpenTelemetry monitoring
 - Error reporting (using Sentry)
 - TLS
@@ -66,6 +67,9 @@ server:
       headers:
         - authorization
         - x-api-key
+    otel:
+      enabled: true
+      trace_header: "x-request-id"
     cors:
       max_age: 300
       options_status_code: 200

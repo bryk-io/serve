@@ -1,3 +1,4 @@
+# OpenTelemetry SDK
 otel:
   enabled: true
   service_name: "serve"
@@ -11,6 +12,7 @@ otel:
     performance_monitoring: true
     traces_sample_rate: 1.0
     profiling_sample_rate: 0.5
+# HTTP server
 server:
   port: 9090
   cache: 3600
@@ -36,6 +38,9 @@ server:
         - x-api-key
         - baggage
         - sentry-trace
+    otel:
+      enabled: true
+      trace_header: "x-request-id"
     cors:
       max_age: 300
       options_status_code: 200

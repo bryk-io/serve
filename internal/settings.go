@@ -149,8 +149,14 @@ func (s *Settings) ServerOptions(handler http.Handler, dir string, log xlog.Logg
 	mw := []func(http.Handler) http.Handler{}
 
 	// enable instrumentation
-	monitor := otelHttp.NewMonitor()
-	mw = append(mw, monitor.ServerMiddleware())
+	if s.Server.Middleware.Otel.Enabled {
+		mwOtelOpts := []otelHttp.Option{}
+		if s.Server.Middleware.Otel.TraceHeader != "" {
+			mwOtelOpts = append(mwOtelOpts, otelHttp.WithTraceInHeader(s.Server.Middleware.Otel.TraceHeader))
+		}
+		monitor := otelHttp.NewMonitor(mwOtelOpts...)
+		mw = append(mw, monitor.ServerMiddleware())
+	}
 
 	// support for single page applications
 	if s.Server.EnableSPA {
@@ -301,8 +307,14 @@ type cspSettings struct {
 	ReportTo   []string `json:"report_to" yaml:"report_to" mapstructure:"report_to"`
 }
 
+type otelMW struct {
+	Enabled     bool   `json:"enabled" yaml:"enabled" mapstructure:"enabled"`
+	TraceHeader string `json:"trace_header" yaml:"trace_header" mapstructure:"trace_header"`
+}
+
 type mwSettings struct {
 	Gzip     int                 `json:"gzip" yaml:"gzip" mapstructure:"gzip"`
+	Otel     *otelMW             `json:"otel" yaml:"otel" mapstructure:"otel"`
 	Metadata *mwMetadata.Options `json:"metadata" yaml:"metadata" mapstructure:"metadata"`
 	CORS     *mwCors.Options     `json:"cors" yaml:"cors" mapstructure:"cors"`
 }

@@ -4,7 +4,7 @@ env:
 on:
   push:
     branches:
-      - '*'
+      - "*"
   pull_request:
     branches:
       - main
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['go']
+        language: ["go"]
     steps:
       # Checkout code
       - name: Checkout repository
@@ -31,7 +31,7 @@ jobs:
           echo 'commit_msg<<EOF' >> $GITHUB_ENV
           git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-      
+
       # Prepare runner environment
       - name: Set up runner environment
         run: ./.github/workflows/assets/utils.sh setup
@@ -41,17 +41,17 @@ jobs:
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           # If you wish to specify custom queries, you can do so here or in a config file.
-          # By default, queries listed here will override any specified in a config file. 
+          # By default, queries listed here will override any specified in a config file.
           # Prefix the list here with "+" to use these queries and those in the config file.
           # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
       # Auto build attempts to build any compiled languages  (C/C++, C#, or Java).
       - name: Auto build
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
 
       # Run manual build only if auto-build fails
       - name: Manual build
@@ -64,4 +64,4 @@ jobs:
       # Can be excluded if the commit message contains: [skip codeql]
       - name: Perform CodeQL analysis
         if: ${{ !contains(env.commit_msg, '[skip codeql]') }}
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3

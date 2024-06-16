@@ -35,9 +35,9 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       # Get commit message
       - name: Get commit message
@@ -93,7 +93,7 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -109,7 +109,7 @@ jobs:
       - name: Static analysis
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.54.2
+          version: v1.59
 
       # Run unit tests
       - name: Test

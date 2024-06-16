@@ -35,9 +35,9 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       # Get commit message
       - name: Get commit message
@@ -75,7 +75,7 @@ jobs:
     needs: scan
     strategy:
       matrix:
-        go-version: [1.20.x, 1.21.x, 1.22.x]
+        go-version: [1.21.x, 1.22.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -93,7 +93,7 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -107,9 +107,9 @@ jobs:
       # Style consistency and static analysis using 'golangci-lint'
       # https://github.com/marketplace/actions/run-golangci-lint
       - name: Static analysis
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.54.2
+          version: v1.59
 
       # Run unit tests
       - name: Test

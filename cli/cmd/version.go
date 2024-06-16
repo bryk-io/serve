@@ -14,7 +14,7 @@ var versionCmd = &cobra.Command{
 	Use:     "version",
 	Aliases: []string{"info"},
 	Short:   "Show version information",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		var components = map[string]string{
 			"Version":    internal.CoreVersion,
 			"Build code": internal.BuildCode,

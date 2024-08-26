@@ -1,6 +1,11 @@
 name: ci
 env:
   commit_msg: ""
+# https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write # allow the actions to annotate code in a PR
 on:
   push:
     branches:

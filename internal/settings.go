@@ -49,6 +49,8 @@ func (s *Settings) SetDefaults(v *viper.Viper, appID string) {
 			ServiceName: appIdentifier,
 			Sentry:      new(sentry.Options),
 		}
+		s.Otel.Collector.Endpoint = ""
+		s.Otel.Collector.Protocol = "grpc"
 	}
 	if s.Server == nil {
 		s.Server = &serverSettings{
@@ -124,8 +126,9 @@ func (s *Settings) OTEL(log xlog.Logger) []otelSdk.Option {
 		otelSdk.WithHostMetrics(),
 		otelSdk.WithRuntimeMetrics(5 * time.Second),
 	}
-	if collector := s.Otel.Collector; collector != "" {
-		opts = append(opts, otelSdk.WithExporterOTLP(collector, true, nil)...)
+	collector := s.Otel.Collector.Endpoint
+	if collector != "" {
+		opts = append(opts, otelSdk.WithExporterOTLP(collector, true, nil, s.Otel.Collector.Protocol)...)
 	}
 
 	// Error reporter
@@ -279,12 +282,15 @@ type serverSettings struct {
 }
 
 type otelSettings struct {
-	Enabled        bool                   `json:"enabled" yaml:"enabled" mapstructure:"enabled"`
-	ServiceName    string                 `json:"service_name" yaml:"service_name" mapstructure:"service_name"`
-	ServiceVersion string                 `json:"service_version" yaml:"service_version" mapstructure:"service_version"`
-	Collector      string                 `json:"collector" yaml:"collector" mapstructure:"collector"`
-	Attributes     map[string]interface{} `json:"attributes" yaml:"attributes" mapstructure:"attributes"`
-	Sentry         *sentry.Options        `json:"sentry" yaml:"sentry" mapstructure:"sentry"`
+	Enabled        bool   `json:"enabled" yaml:"enabled" mapstructure:"enabled"`
+	ServiceName    string `json:"service_name" yaml:"service_name" mapstructure:"service_name"`
+	ServiceVersion string `json:"service_version" yaml:"service_version" mapstructure:"service_version"`
+	Collector      struct {
+		Endpoint string `json:"endpoint" yaml:"endpoint" mapstructure:"endpoint"`
+		Protocol string `json:"protocol" yaml:"protocol" mapstructure:"protocol"`
+	} `json:"collector" yaml:"collector" mapstructure:"collector"`
+	Attributes map[string]interface{} `json:"attributes" yaml:"attributes" mapstructure:"attributes"`
+	Sentry     *sentry.Options        `json:"sentry" yaml:"sentry" mapstructure:"sentry"`
 }
 
 type tlsSettings struct {

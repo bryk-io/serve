@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.bryk.io/pkg/cli"
+	viperUtils "go.bryk.io/pkg/cli/viper"
 	"go.bryk.io/pkg/errors"
 	pkgHttp "go.bryk.io/pkg/net/http"
 	otelSdk "go.bryk.io/pkg/otel/sdk"
@@ -22,7 +23,11 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	if err := cli.SetupCommandParams(runCmd, conf.Overrides("server"), viper.GetViper()); err != nil {
+	params := conf.Overrides("server")
+	if err := cli.SetupCommandParams(runCmd, params); err != nil {
+		panic(err)
+	}
+	if err := viperUtils.BindFlags(runCmd, params, viper.GetViper()); err != nil {
 		panic(err)
 	}
 	rootCmd.AddCommand(runCmd)

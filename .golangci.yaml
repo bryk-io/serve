@@ -44,8 +44,8 @@ linters:
     # - wrapcheck
     # - ifshort
     # - varcheck
-    # - structcheck
     # - deadcode
+    # - structcheck
   disable:
     - unused
     - dupl

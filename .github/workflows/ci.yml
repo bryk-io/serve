@@ -1,11 +1,10 @@
 name: ci
-env:
-  commit_msg: ""
-# https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+# default job permissions
 permissions:
   contents: read
-  pull-requests: write
-  checks: write # allow the actions to annotate code in a PR
+env:
+  # used to hold the commit message
+  commit_msg: ""
 on:
   push:
     branches:
@@ -13,6 +12,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 #    Inputs are available under: github.event.inputs.{name}
 #    inputs:
@@ -27,9 +27,17 @@ jobs:
     name: scan for vulnerabilities
     runs-on: ubuntu-latest
     steps:
+      # Harden workflow runner
+      - name: Harden workflow runner (audit all outbound calls)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        with:
+          egress-policy: audit
+
       # Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Configure runner environment
       - name: Set up runner environment
@@ -40,9 +48,10 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
+          cache: false
 
       # Get commit message
       - name: Get commit message
@@ -51,26 +60,24 @@ jobs:
           git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
 
-      # List direct dependencies
-      - name: List dependencies
-        run: go list -mod=readonly -f '{{if not .Indirect}}{{.}}{{end}}' -m all > go.list
-
-      # Scan dependencies using Nancy
+      # Scan dependencies using `govuln`
       # Can be excluded if the commit message contains: [skip scan-deps]
-      # https://github.com/sonatype-nexus-community/nancy-github-action
+      # https://github.com/golang/vuln
       - name: Scan dependencies
         if: ${{ !contains(env.commit_msg, '[skip scan-deps]') }}
-        uses: sonatype-nexus-community/nancy-github-action@v1.0.3
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck -format sarif -mode source -scan package ./...
 
       # Scan for leaked secrets
       # Can be excluded if the commit message contains: [skip scan-secrets]
       # https://github.com/marketplace/actions/trufflehog-oss
       - name: Scan for leaked secrets
-        uses: trufflesecurity/trufflehog@v3.26.0
+        uses: trufflesecurity/trufflehog@18c7b1fc33e6c16b27ea66ff27cc7e642fb7cd0a # v3.90.6
         if: ${{ !contains(env.commit_msg, '[skip scan-secrets]') }}
         with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
+          base: "" # scan entire branch
+          head: ${{ github.ref_name }}
           extra_args: --debug --only-verified
 
   # Runs on every push and pull request on the selected branches.
@@ -80,14 +87,22 @@ jobs:
     needs: scan
     strategy:
       matrix:
-        go-version: [1.22.x, 1.23.x, 1.24.x]
+        go-version: [1.25.x, 1.26.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      # Harden workflow runner
+      - name: Harden workflow runner (audit all outbound calls)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        with:
+          egress-policy: audit
+
       # Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Configure runner environment
       - name: Set up runner environment
@@ -98,23 +113,17 @@ jobs:
 
       # Go
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: ${{ matrix.go-version }}
-
-      # Get commit message
-      - name: Get commit message
-        run: |
-          echo 'commit_msg<<EOF' >> $GITHUB_ENV
-          git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+          cache: false
 
       # Style consistency and static analysis using 'golangci-lint'
       # https://github.com/golangci/golangci-lint-action
       - name: Static analysis
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: v2.1
+          version: v2.10
 
       # Run unit tests
       - name: Test
@@ -122,11 +131,11 @@ jobs:
 
       # Ensure project compile and build successfully
       - name: Build
-        run: make build
+        run: make build-for os=linux arch=amd64
 
       # Save artifacts
       - name: Save artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: assets-${{ matrix.go-version }}
           path: |

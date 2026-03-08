@@ -1,4 +1,6 @@
 name: publish
+permissions:
+  contents: read
 env:
   commit_msg: ""
 on:
@@ -10,23 +12,24 @@ jobs:
   publish:
     name: publish package
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to write a new release
     timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      # Go
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      # Harden workflow runner
+      - name: Harden workflow runner (audit all outbound calls)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
-          go-version: 1.24.x
+          egress-policy: audit
 
       # Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v4
-        # This is required for the changelog to be properly generated
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      # Prepare runner environment
+      # Configure runner environment
       - name: Set up runner environment
         run: ./.github/workflows/assets/utils.sh setup
         env:
@@ -40,11 +43,18 @@ jobs:
           git log --format=%B -n 1 ${{ github.sha }} >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
 
+      # Go
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: 1.25.x
+          cache: false
+
       # Use goreleaser to create the new release
       # https://github.com/goreleaser/goreleaser-action
       - name: Create release
-        uses: goreleaser/goreleaser-action@v6
-        if: startsWith(github.ref, 'refs/tags/') && !contains(env.commit_msg, '[skip release]')
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           version: latest
           args: release --clean --skip=validate

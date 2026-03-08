@@ -1,0 +1,29 @@
+# Dependency Review Action
+#
+# This Action will scan dependency manifest files that change as part
+# of a Pull Request, surfacing known-vulnerable versions of the packages
+# declared or updated in the PR.
+name: "Dependency review"
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      # Harden workflow runner
+      - name: Harden workflow runner (audit all outbound calls)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        with:
+          egress-policy: audit
+
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Scan dependencies
+      # https://github.com/actions/dependency-review-action
+      - name: Dependency review
+        uses: actions/dependency-review-action@05fe4576374b728f0c523d6a13d64c25081e0803 # v4.8.3

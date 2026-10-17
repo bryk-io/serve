@@ -1,9 +1,8 @@
 # File System HTTP Server
 
-[![Build Status](https://github.com/bryk-io/serve/workflows/ci/badge.svg?branch=main)](https://github.com/bryk-io/serve/actions)
+[![Build Status](https://github.com/bryk-io/serve/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bryk-io/serve/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/tag/bryk-io/serve.svg)](https://github.com/bryk-io/serve/releases)
 [![Software License](https://img.shields.io/badge/license-BSD3-red.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bryk-io/serve?style=flat)](https://goreportcard.com/report/github.com/bryk-io/serve)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0-ff69b4.svg)](.github/CODE_OF_CONDUCT.md)
 
 Easily deploy a robust HTTP(S) server from contents on your file system.
